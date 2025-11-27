@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+
 using namespace std;
 
 //  Function Declarations 
@@ -10,6 +11,16 @@ void dailyQuestsMenu();
 void statsMenu();
 void inventoryMenu();
 void settingsMenu();
+void dungeonQuestsMenu();
+void bossFight();
+
+
+struct Boss {
+    string name;
+    int maxHP;
+    int currentHP;
+};
+
 
 //  MAIN 
 int main() {
@@ -66,9 +77,8 @@ void questMenu() {
     do {
         cout << "\n┌──────────────────── QUESTS ────────────────────┐\n";
         cout << "│  1. Daily Quests                               │\n";
-        cout << "│  2. Dungeon Quests                             │\n";
-        cout << "│  3. Timed Boss Fights                          │\n";
-        cout << "│  4. Side Quests                                │\n";
+        cout << "│  2. Boss Fights                                │\n";
+        cout << "│  3. Side Quests                                │\n";
         cout << "│                                                │\n";
         cout << "│  0. Back                                       │\n";
         cout << "└────────────────────────────────────────────────┘\n";
@@ -77,9 +87,8 @@ void questMenu() {
 
         switch(choice) {
             case 1: dailyQuestsMenu(); break;
-            case 2: cout << "Dungeon Quests selected.\n"; break;
-            case 3: cout << "Timed Boss Fights selected.\n"; break;
-            case 4: cout << "Side Quests selected.\n"; break;
+            case 2: bossFight(); break;
+            case 3: cout << "Side Quests selected.\n"; break;
             case 0: cout << "Returning to Main Menu...\n"; break;
             default: cout << "Invalid choice!\n";
         }
@@ -155,6 +164,85 @@ void dailyQuestsMenu()
 
         } while (option != 0);
     }
+
+//  BOSS FIGHT 
+void displayBoss(const Boss &boss) {
+    cout << "\n===== BOSS FIGHT: " << boss.name << " =====\n";
+    cout << R"(
+          ,     \    /      ,
+         / \    )\__/(     / \
+        /   \  (_\  /_)   /   \
+   ____/_____\__\@  @/___/_____\____
+  |             |\../|              |
+  |              \VV/               |
+  |       THE TERRIBLE BOSS         |
+  |_________________________________|
+        |    /\ /      \ /\    |
+        |  /   V        V   \  |
+        |/                \|
+    )";
+    
+    cout << "\nHP: " << boss.currentHP << " / " << boss.maxHP << endl;
+}
+
+void bossFight() {
+    Boss boss = {"Shadow King", 100, 100};
+    vector<string> subtasks;
+    int damagePerTask = 20; // each task completed deals 20 damage
+
+    while (boss.currentHP > 0) {
+        displayBoss(boss);
+        
+        cout << "\n1. Add Attack Task\n";
+        cout << "2. Complete a Task (Attack Boss!)\n";
+        cout << "3. Run Away (Exit)\n";
+        cout << "Choose: ";
+        
+        int choice;
+        cin >> choice;
+
+        if (choice == 1) {
+            cin.ignore();
+            cout << "Enter an attack task: ";
+            string task;
+            getline(cin, task);
+            subtasks.push_back(task);
+            cout << "Task added!\n";
+        }
+        else if (choice == 2) {
+            if (subtasks.empty()) {
+                cout << "No tasks to attack with! Add some first.\n";
+            } else {
+                cout << "Choose a task to complete:\n";
+                for (size_t i = 0; i < subtasks.size(); i++) {
+                    cout << i + 1 << ". " << subtasks[i] << endl;
+                }
+
+                int taskChoice;
+                cin >> taskChoice;
+
+                if (taskChoice > 0 && taskChoice <= subtasks.size()) {
+                    cout << "You completed: " << subtasks[taskChoice - 1] << " 🔥\n";
+                    boss.currentHP -= damagePerTask;
+                    if (boss.currentHP < 0) boss.currentHP = 0;
+                    subtasks.erase(subtasks.begin() + (taskChoice - 1));
+                } else {
+                    cout << "Invalid task!\n";
+                }
+            }
+        }
+        else if (choice == 3) {
+            cout << "You fled the fight...\n";
+            return;
+        }
+        else {
+            cout << "Invalid choice.\n";
+        }
+    }
+
+    cout << "\n🎉 YOU DEFEATED THE BOSS!\n";
+    cout << "Shadow King has fallen! 💥\n";
+}
 
 //  STATS MENU 
 void statsMenu() {
