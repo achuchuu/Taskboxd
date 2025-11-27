@@ -1,9 +1,12 @@
 #include <iostream>
+#include <vector>
+#include <string>
 using namespace std;
 
 //  Function Declarations 
 void mainMenu();
 void questMenu();
+void dailyQuestsMenu();
 void statsMenu();
 void inventoryMenu();
 void settingsMenu();
@@ -73,7 +76,7 @@ void questMenu() {
         cin >> choice;
 
         switch(choice) {
-            case 1: cout << "Daily Quests selected.\n"; break;
+            case 1: dailyQuestsMenu(); break;
             case 2: cout << "Dungeon Quests selected.\n"; break;
             case 3: cout << "Timed Boss Fights selected.\n"; break;
             case 4: cout << "Side Quests selected.\n"; break;
@@ -89,6 +92,69 @@ void questMenu() {
 
     } while(choice != 0);
 }
+
+//  DAILY QUESTS MENU 
+
+vector<string> dailyQuests;
+
+void dailyQuestsMenu()
+{
+    int option;
+
+    do {
+        cout << "\n┌────────── DAILY QUESTS ──────────┐\n";
+        cout << "│  1. Add Quest                    │\n";
+        cout << "│  2. Complete Quest               │\n";
+
+        if (dailyQuests.empty())
+            cout << "│  - No quests yet -               │\n";
+        else {
+            cout << "│  Your Quests:                    │\n";
+            for (int i = 0; i < dailyQuests.size(); i++) {
+                cout << "│   " << i + 1 << ". " << dailyQuests[i] << "\n";
+            }
+        }
+
+        cout << "│                                  │\n";
+        cout << "│  0. Back                         │\n";
+        cout << "└──────────────────────────────────┘\n";
+        cout << "Choose: ";
+        cin >> option;
+        cin.ignore();
+
+        if (option == 1)
+        {
+            string quest;
+            cout << "Enter quest description: ";
+            getline(cin, quest);
+            dailyQuests.push_back(quest);
+        }
+        else if (option == 2)
+        {
+            if (dailyQuests.empty())
+            {
+                cout << "No quests to complete!\n";
+            }
+            else
+            {
+                int index;
+                cout << "Enter quest number to complete: ";
+                cin >> index;
+
+                if (index > 0 && index <= dailyQuests.size())
+                {
+                    dailyQuests.erase(dailyQuests.begin() + (index - 1));
+                    cout << "Quest completed!\n";
+                }
+                else
+                {
+                    cout << "Invalid quest number!\n";
+                }
+            }
+        }
+
+        } while (option != 0);
+    }
 
 //  STATS MENU 
 void statsMenu() {
