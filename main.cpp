@@ -100,6 +100,41 @@ void clearScreen() {
     SetConsoleCursorPosition(hConsole, {0, 0});
 }
 
+
+void adjustConsoleSize(int width, int height) {
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    // Set screen buffer size
+    COORD bufferSize;
+    bufferSize.X = width;
+    bufferSize.Y = height;
+    SetConsoleScreenBufferSize(hConsole, bufferSize);
+
+    // Set window size
+    SMALL_RECT windowSize;
+    windowSize.Left = 0;
+    windowSize.Top = 0;
+    windowSize.Right = width - 1;
+    windowSize.Bottom = height - 1;
+    SetConsoleWindowInfo(hConsole, TRUE, &windowSize);
+}
+
+// Helper to calculate required console width for a string
+int getRequiredWidth(const string& text) {
+    int maxWidth = 0, currentLine = 0;
+    for (char c : text) {
+        if (c == '\n') {
+            if (currentLine > maxWidth) maxWidth = currentLine;
+            currentLine = 0;
+        } else {
+            currentLine++;
+        }
+    }
+    if (currentLine > maxWidth) maxWidth = currentLine;
+    return maxWidth + 5; // small margin
+}
+
+
 // SAVE AND LOAD
 void saveData() {
     ofstream file("playerData.txt");
@@ -423,33 +458,34 @@ void mainMenu() {
     while (true) {
         clearScreen();
         
-        cout << "┌─────────────────────°❀⋆.ೃ࿔*:･°❀⋆.ೃ࿔*:─────────────────────┐\n";
-        cout << "│                                                          │\n";
-        cout << "│                      T A S K B O X D                     │\n";
-        cout << "│                \"Gamify your Study Grind!\"                │\n";
-        cout << "│                                                          │\n";
-        cout << "├──────────────────────────────────────────────────────────┤\n";
-        cout << "│                                                          │\n";
-        cout << "│  Player: " << player.name << "                                        │\n";
-        displayBar("│  Stamina", player.stamina, 100);
+        cout << R"(
+┌─────────────────────────────°❀⋆.ೃ࿔*:･°❀⋆.ೃ࿔*:─────────────────────────────┐
+
+                                T A S K B O X D
+                            "Gamify your Study Grind!"
+
+└─────────────────────────────°❀⋆.ೃ࿔*:･°❀⋆.ೃ࿔*:─────────────────────────────┘
+    )";
+        cout << "\n Player: " << player.name << "                 ";
+        displayBar("Stamina", player.stamina, 100);
         
         if (companion.type != NONE) {
-            cout << "│                                                          │\n";
-            cout << "│  Companion Level: " << companion.level << "                                  │\n";
-            displayBar("│  Companion EXP", companion.exp, 100);
+            cout << "\n";
+            cout << "  Companion Level: " << companion.level << "    \n";
+            displayBar("  Companion EXP", companion.exp, 100);
         }
         
-        cout << "│                                                          │\n";
-        cout << "│----------------------------------------------------------│\n";
-        cout << "│                                                          │\n";
-        cout << "│ ✦ Quick Actions . ˚₊ ⊹ . ˚˖ . ˚                             │\n";
-        cout << "│                                                          │\n";
-        cout << "│   ➀ Quests               ➁ Companion                     │\n";
-        cout << "│   ➂ Exit                                                 │\n";
-        cout << "│                                                          │\n";
-        cout << "└──────────────────────────────────────────────────────────┘\n";
+        cout << R"(                                                          
+-------------------------------------------------------------------------------
+                                                                  
+    ✦ Quick Actions . ˚₊ ⊹ . ˚˖ . ˚                             
+                                                            
+    ➀ Quests               ➁ Companion                     
+    ➂ Exit                                                 
+
+-------------------------------------------------------------------------------)";
         
-        cout << "\nEnter option: ";
+        cout << "\n ✦ Enter option: ";
         option = safeInput();
         
         switch(option) {
@@ -473,11 +509,11 @@ void questMenu() {
     do {
         clearScreen();
         cout << "\n┌──────────────────── QUESTS ────────────────────┐\n";
-        cout << "│  1. Daily Quests                               │\n";
-        cout << "│  2. Boss Fights                                │\n";
-        cout << "│  3. Side Quests                                │\n";
+        cout << "│  ➀ Daily Quests                               │\n";
+        cout << "│  ➁ Boss Fights                                │\n";
+        cout << "│  ➂ Side Quests                                │\n";
         cout << "│                                                │\n";
-        cout << "│  0. Back                                       │\n";
+        cout << "│  ➃ Back                                       │\n";
         cout << "└────────────────────────────────────────────────┘\n";
         cout << "Choose an option: ";
         choice = safeInput();
@@ -486,7 +522,7 @@ void questMenu() {
             case 1: dailyQuestsMenu(); break;
             case 2: bossFight(); break;
             case 3: sideQuestMenu(); break;
-            case 0: cout << "Returning to Main Menu...\n"; break;
+            case 4: cout << "Returning to Main Menu...  ᶻ 𝗓 𐰁 .ᐟ\n"; break;
             default: cout << "Invalid choice!\n";
         }
     } while(choice != 0);
@@ -498,7 +534,7 @@ void dailyQuestsMenu() {
     
     do {
         clearScreen();
-        cout << "\n─────────── DAILY QUESTS ───────────\n";
+        cout << "\n₊✩‧₊˚౨ৎ˚₊✩‧₊ DAILY QUESTS ₊✩‧₊˚౨ৎ˚₊✩‧₊\n";
         cout << "  1. Add Quest                    \n";
         cout << "  2. Complete Quest               \n";
         cout << "                                  \n";
@@ -511,7 +547,7 @@ void dailyQuestsMenu() {
         }
         cout << "                                  \n";
         cout << " 0. Back                          \n";
-        cout << "──────────────────────────────────\n";
+        cout << "₊✩‧₊˚౨ৎ˚₊✩‧₊₊✩‧₊˚౨ৎ˚₊✩‧₊₊✩‧₊˚౨ৎ˚₊✩‧₊˚౨ৎ‧₊\n";
         cout << "Choose: ";
         option = safeInput();
         
@@ -571,7 +607,7 @@ void sideQuestMenu() {
     
     do {
         clearScreen();
-        cout << "\n─────────────── SIDE QUESTS ───────────────\n";
+        cout << "\n꒷꒦︶꒷꒦︶ ๋ ࣭ ⭑꒷꒦ SIDE QUESTS ꒷꒦︶꒷꒦︶ ๋ ࣭ ⭑꒷꒦\n";
         if (sideQuestList.empty()) {
             cout << " No side quests added yet.             \n";
         } else {
@@ -582,7 +618,7 @@ void sideQuestMenu() {
             }
         }
         cout << " 0. Back                               \n";
-        cout << "────────────────────────────────────────\n";
+        cout << "꒷꒦︶꒷꒦︶ ๋ ࣭ ⭑꒷꒦꒷꒦︶꒷꒦︶ ๋ ࣭ ⭑꒷꒦꒷꒦︶꒷꒦︶ ๋ ࣭ ⭑꒷꒦\n";
         cout << "\n1. Add Side Quest\n2. Complete a Side Quest\nChoose: ";
         choice = safeInput();
         
@@ -625,19 +661,43 @@ void sideQuestMenu() {
 // BOSS FIGHT
 void displayBoss(const Boss &boss) {
     clearScreen();
-    cout << "\n╔══════════════ BOSS FIGHT ══════════════╗\n";
+    cout << R"(
+  _______                       _______ __       __    __   
+ |   _   .-----.-----.-----.   |   _   |__.-----|  |--|  |_ 
+ |.  1   |  _  |__ --|__ --|   |.  1___|  |  _  |     |   _|
+ |.  _   |_____|_____|_____|   |.  __) |__|___  |__|__|____|
+ |:  1    \                    |:  |      |_____|           
+ |::.. .  /                    |::.|                        
+ `-------'                     `---'                        
+ )";
     cout << " 👹 " << boss.name << "\n";
     cout << " HP: [";
-    
     int barWidth = 30;
     int filled = (boss.currentHP * barWidth) / boss.maxHP;
-    for (int i = 0; i < filled; i++) cout << "♥︎";
-    for (int i = filled; i < barWidth; i++) cout << "♡";
+    for (int i = 0; i < filled; i++) cout << "❤️";
+    for (int i = filled; i < barWidth; i++) cout << "🤍";
     cout << "] " << boss.currentHP << "/" << boss.maxHP << "\n\n";
+    cout << R"(
+            ⠀⠀      ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⢀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⢿⡁⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⠟⣧⠀⠀⠀⠀⠀⠀⣀⣀⣀⣀⣀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⣠⣴⣞⡛⠋⠉⠉⠉⠙⠛⠓⠶⣤⣀⠀⠀⠀⣼⠃⠼⣧⣀⣠⣤⣤⣤⣤⣄⣀⣠⡟⠀⢹⡇⠀⣤⣶⠛⠛⠉⠉⠉⠉⠉⠉⠙⠛⠲⢦⣄⡀⠀⠀⠀⠀⠀
+⠉⠉⠉⠙⠳⣄⠀⠀⠀⠀⠀⠀⢈⣽⠗⠀⢀⣿⡀⠷⠛⠉⠁⠀⠀⠀⠀⠈⠿⠋⠀⠀⣸⠇⠀⠀⠹⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠳⣦⡀⠀⠀
+⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⣼⠁⠀⢠⡾⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠰⠟⢷⡀⠀⠀⢻⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣤⣤⣤⣬⣻⣦⠀
+⠀⠀⠀⠀⣰⡏⠀⠀⠀⠀⠀⠀⣿⠀⣰⢟⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢻⡄⠀⣾⡀⠀⠀⠀⠀⠀⠀⠀⢸⠋⠀⠀⠀⠀⠀⠀⠙⠃
+⠀⠀⠀⡴⠿⠖⠒⠶⣦⡀⠀⠀⠹⣧⡏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢿⣼⠃⠁⠀⠀⠀⠀⠀⠀⠀⢸⡆⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠉⣷⠀⠀⠀⢸⠇⠀⠀⠀⠀⠀⣤⡀⠀⠀⠀⣀⡀⠀⠀⠀⠀⠀⢠⣤⠾⠋⠁⠀⠀⠀⣠⡶⠒⠓⠶⢦⣄⣷⡀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⣹⣤⠴⠶⣾⠀⠀⠀⠀⠀⢀⢻⠁⠀⠀⠈⠛⠁⠀⠀⠀⠀⠀⠀⠿⠳⢶⣦⣤⣀⠀⣿⠀⠀⠀⠀⠀⠈⠙⠷⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠛⠁⠀⠀⢹⡗⠀⠀⠀⠀⠛⠉⠉⠉⠙⠛⠶⣦⠄⠀⠀⠀⠀⠀⠀⠀⢸⠃⠀⠉⠳⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠻⢦⣤⣀⡀⠀⠀⠀⠀⠀⠀⣀⠀⠀⡶⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⢻⣟⢻⡟⠛⠛⠛⠹⣦⢰⡇⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠾⠃⠀⠀⠀⠀ ⠹⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀)";
 }
 
+
 void bossFight() {
-    Boss boss = {"Final Exam Monster", 100, 100};
+    Boss boss = {"Panique Nail", 100, 100};
     vector<string> subtasks;
     
     while (boss.currentHP > 0) {
@@ -691,7 +751,7 @@ void bossFight() {
     
     clearScreen();
     player.bossesDefeated++;
-    cout << "\n🎉 YOU DEFEATED THE BOSS!\n";
+    cout << "\n🎉 YOU DEFEATED THE BOSS! OMSIM!! \n";
     gainCompanionEXP(50); // Big bonus for boss!
     cout << "\nPress Enter to continue...";
     cin.get();
@@ -831,14 +891,18 @@ int main() {
 
     
 
-    std::cout << "Welcome to TaskBox!\n";
+    cout << "Welcome to TaskBox!\n";
 
-    // Your existing program logic
+    int requiredWidth = 80;
+    int requiredHeight = 30; // For simple example
+    adjustConsoleSize(requiredWidth, requiredHeight);
+
+
     loadData();
     dailyResetCheck();
     if (player.name.empty()) {
-        std::cout << "Enter your name: ";
-        std::getline(std::cin, player.name);
+        cout << "Enter your name: ";
+        getline(cin, player.name);
     }
     mainMenu();
 
