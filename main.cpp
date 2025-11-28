@@ -67,29 +67,39 @@ void savePlayerData() {
         cout << "Error saving player data!\n";
         return;
     }
-    file << player.studyStreak << " "
+
+    file << player.level << " "
+         << player.exp << " "
+         << player.stamina << " "
+         << player.studyStreak << " "
          << player.dailyTasksCompleted << " "
          << lastDailyDate << " "
          << player.sharpMind << " "
          << player.bookworm << " "
          << player.nightOwl << " "
          << player.bossSlayer << "\n";
+
     file.close();
 }
+
 
 void loadPlayerData() {
     ifstream file("playerData.txt");
     if (!file) {
-        // First time running; nothing to load
-        return;
+        return; // first run
     }
-    file >> player.studyStreak
+
+    file >> player.level
+         >> player.exp
+         >> player.stamina
+         >> player.studyStreak
          >> player.dailyTasksCompleted
          >> lastDailyDate
          >> player.sharpMind
          >> player.bookworm
          >> player.nightOwl
          >> player.bossSlayer;
+
     file.close();
 }
 
@@ -98,6 +108,36 @@ int getCurrentDate() {
     time_t t = time(nullptr);
     tm* now = localtime(&t);
     return (now->tm_year + 1900) * 10000 + (now->tm_mon + 1) * 100 + now->tm_mday;
+}
+
+//reset daily quests if date has changed
+void dailyResetCheck() {
+    int today = getCurrentDate();
+
+    if (today != lastDailyDate) {
+
+        player.dailyTasksCompleted = 0;   // reset daily tasks
+        // player.stamina = 100;          // optional: reset stamina daily
+
+        lastDailyDate = today;
+        savePlayerData();
+    }
+}
+
+//error handling
+int safeInput() {
+    int x;
+    cin >> x;
+
+    while (cin.fail()) {
+        cin.clear();
+        cin.ignore(1000, '\n');
+        cout << "Please enter a number: ";
+        cin >> x;
+    }
+
+    cin.ignore(1000, '\n');
+    return x;
 }
 
 //  MAIN 
@@ -144,7 +184,7 @@ void displayBar(const string &label, int current, int max, int width = 20) {
     cout << "│  " << label << ": [";
     for (int i = 0; i < width; i++) {
         if (i < filled) cout << "■";  // filled part
-        else cout << " ";              // empty part
+        else cout << "□";              // empty part
     }
     cout << "] " << current << "/" << max << "\n";
 }
@@ -176,7 +216,8 @@ void mainMenu() {
         cout << "└──────────────────────────────────────────────────────────┘\n";
 
         cout << "\nEnter option: ";
-        cin >> option;
+        option = safeInput();
+
 
         switch(option) {
             case 1: questMenu(); break;
@@ -202,7 +243,7 @@ void questMenu() {
         cout << "│  0. Back                                       │\n";
         cout << "└────────────────────────────────────────────────┘\n";
         cout << "Choose an option: ";
-        cin >> choice;
+        choice = safeInput();
 
         switch(choice) {
             case 1: dailyQuestsMenu(); break;
@@ -223,8 +264,6 @@ void dailyQuestsMenu() {
                 }
 
     int option;
-    cin.ignore();
-
     do {
         cout << "\n─────────── DAILY QUESTS ───────────\n";
         cout << "  1. Add Quest                    \n";
@@ -241,8 +280,7 @@ void dailyQuestsMenu() {
         cout << " 0. Back                          \n";
         cout << "──────────────────────────────────\n";
         cout << "Choose: ";
-        cin >> option;
-        cin.ignore();
+        option = safeInput();
 
         if (option == 1) {
             string quest;
@@ -256,7 +294,7 @@ void dailyQuestsMenu() {
                 else {
                     int index;
                     cout << "Enter quest number to complete: ";
-                    cin >> index;
+                    index = safeInput();
                     if (index > 0 && index <= dailyQuests.size()) {
                         if (reduceStamina(5)) gainEXP(10); // Daily quest: 5 stamina, 10 EXP
 
@@ -303,14 +341,12 @@ void displaySideQuests() {
 
 void sideQuestMenu() {
     int choice;
-    cin.ignore();
 
     do {
         displaySideQuests();
         cout << "\n1. Add Side Quest\n2. Complete a Side Quest\nChoose: ";
-        cin >> choice;
-        cin.ignore();
-
+        choice = safeInput();
+        
         if (choice == 1) {
             string quest;
             cout << "Enter your side quest (hobby/project): ";
@@ -370,14 +406,12 @@ void displayBoss(const Boss &boss) {
 void bossFight() {
     Boss boss = {"Panique Nail", 100, 100};
     vector<string> subtasks;
-    cin.ignore();
 
     while (boss.currentHP > 0) {
         displayBoss(boss);
         cout << "\n1. Add Attack Task\n2. Complete a Task (Attack Boss!)\n3. Run Away\nChoose: ";
         int choice;
-        cin >> choice;
-        cin.ignore();
+        choice = safeInput();
 
         if (choice == 1) {
             string task;
@@ -431,7 +465,7 @@ void statsMenu() {
         cout << "│  0. Back                                   │\n";
         cout << "└────────────────────────────────────────────┘\n";
         cout << "Choose an option: ";
-        cin >> choice;
+        choice = safeInput();
 
         switch(choice) {
             case 1:
@@ -439,6 +473,7 @@ void statsMenu() {
                 cout << "Level: " << player.level << "\n";
                 cout << "EXP: " << player.exp << "/100\n";
                 cout << "Stamina: " << player.stamina << "/100\n";
+                cout << "Streak: " << player.studyStreak << " day(s)\n";
                 break;
 
             case 2:
@@ -477,7 +512,6 @@ void statsMenu() {
 
         if(choice != 0) {
             cout << "Press Enter to continue...";
-            cin.ignore();
             cin.get();
         }
 
@@ -524,7 +558,7 @@ void equipTitle() {
 
     cout << "Enter number to equip a title: ";
     int choice;
-    cin >> choice;
+    choice = safeInput();
 
     if (choice > 0 && choice <= availableTitles.size()) {
         player.equippedTitle = availableTitles[choice - 1];
