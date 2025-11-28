@@ -1,27 +1,52 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <fstream>  
-#include <sstream>  
+#include <fstream>
+#include <sstream>
 #include <windows.h>
+#include <ctime>
 
 using namespace std;
 
+// COMPANION TYPES
+enum CompanionType {
+    NONE = 0,
+    BYTEBUN = 1,
+    DATABUN = 2,
+    MEGABUN = 3,
+    SYSBUN = 4,
+    GEARCUB = 5,
+    GEARLING = 6,
+    MECHABEAR = 7,
+    CLOCKWORKBEAST = 8,
+    PIXELLIMP = 9,
+    SUB_PIXEL = 10,
+    CHROMXEL = 11,
+    MEGA_PIXEL = 12
+};
+
 // STRUCTS
-struct Player {
-    string name;
+struct Companion {
+    CompanionType type = NONE;
     int level = 1;
     int exp = 0;
+    int mood = 60;
+    int energy = 5;
+    int bondLevel = 1;
+    int trust = 50;
+    int evolutionStage = 0; // 0 = base, 1 = evolved, 2 = mega, 3 = legendary
+};
+
+struct Player {
+    string name;
     int stamina = 100;
     string equippedTitle = "";
-
-    // Track achievements
+    
     bool sharpMind = false;
     bool bookworm = false;
     bool nightOwl = false;
     bool bossSlayer = false;
-
-    // Track daily stats
+    
     int dailyTasksCompleted = 0;
     int studyStreak = 0;
     int lateTasksCompleted = 0;
@@ -41,9 +66,9 @@ struct Boss {
 
 // GLOBAL VARIABLES
 Player player;
+Companion companion;
 vector<string> dailyQuests;
 vector<SideQuest> sideQuestList;
-
 int lastDailyDate = 0;
 
 // FUNCTION DECLARATIONS
@@ -52,133 +77,326 @@ void questMenu();
 void dailyQuestsMenu();
 void sideQuestMenu();
 void bossFight();
-void statsMenu();
-void displayBar();
+void displayBar(const string &label, int current, int max, int width);
 void displayBoss(const Boss &boss);
-void checkAchievements();
-void gutCurrentDate();
-void gainEXP(int amount);
+void gainCompanionEXP(int amount);
 void equipTitle();
 bool reduceStamina(int amount);
-void COMPANIONMENU ();
+void COMPANIONMENU();
+void checkEvolution();
+void displayCompanion();
+void saveData();
+void loadData();
 
-// SAVE AND LOAD FUNCTIONS
-void savePlayerData() {
+// CLEAR SCREEN
+void clearScreen() {
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    DWORD count, cellCount;
+    if (!GetConsoleScreenBufferInfo(hConsole, &csbi)) return;
+    cellCount = csbi.dwSize.X * csbi.dwSize.Y;
+    FillConsoleOutputCharacter(hConsole, (TCHAR)' ', cellCount, {0, 0}, &count);
+    FillConsoleOutputAttribute(hConsole, csbi.wAttributes, cellCount, {0, 0}, &count);
+    SetConsoleCursorPosition(hConsole, {0, 0});
+}
+
+// SAVE AND LOAD
+void saveData() {
     ofstream file("playerData.txt");
     if (!file) {
-        cout << "Error saving player data!\n";
+        cout << "Error saving data!\n";
         return;
     }
 
+    // Player & companion info
     file << player.name << " "
-         << player.level << " "
-         << player.exp << " "
          << player.stamina << " "
          << player.studyStreak << " "
          << player.dailyTasksCompleted << " "
          << lastDailyDate << " "
-         << player.sharpMind << " "
-         << player.bookworm << " "
-         << player.nightOwl << " "
-         << player.bossSlayer << "\n";
+         << (int)companion.type << " "
+         << companion.level << " "
+         << companion.exp << " "
+         << companion.mood << " "
+         << companion.energy << " "
+         << companion.bondLevel << " "
+         << companion.trust << " "
+         << companion.evolutionStage << "\n";
+
+    // DAILY QUESTS
+    file << dailyQuests.size() << " ";
+    for (const auto& q : dailyQuests) {
+        file << q << "|";  // separate each quest with |
+    }
+    file << "\n";
+
+    // SIDE QUESTS
+    file << sideQuestList.size() << " ";
+    for (const auto& sq : sideQuestList) {
+        file << sq.name << "," << sq.completed << "|"; // name,completed
+    }
+    file << "\n";
 
     file.close();
 }
 
-
-void loadPlayerData() {
+void loadData() {
     ifstream file("playerData.txt");
-    if (!file) {
-        return; // first run
+    if (!file) return; // no saved data yet
+
+    string line;
+
+    // Player & companion
+    if (getline(file, line)) {
+        istringstream ss(line);
+        int compType;
+        ss >> player.name
+           >> player.stamina
+           >> player.studyStreak
+           >> player.dailyTasksCompleted
+           >> lastDailyDate
+           >> compType
+           >> companion.level
+           >> companion.exp
+           >> companion.mood
+           >> companion.energy
+           >> companion.bondLevel
+           >> companion.trust
+           >> companion.evolutionStage;
+        companion.type = static_cast<CompanionType>(compType);
     }
 
-    file >> player.name
-         >> player.level
-         >> player.exp
-         >> player.stamina
-         >> player.studyStreak
-         >> player.dailyTasksCompleted
-         >> lastDailyDate
-         >> player.sharpMind
-         >> player.bookworm
-         >> player.nightOwl
-         >> player.bossSlayer;
+    // Daily quests
+    if (getline(file, line)) {
+        istringstream ss(line);
+        size_t n;
+        ss >> n;
+        dailyQuests.clear();
+        string quests;
+        getline(ss, quests); // rest of line
+        size_t pos = 0;
+        while ((pos = quests.find('|')) != string::npos) {
+            string quest = quests.substr(0, pos);
+            if (!quest.empty()) dailyQuests.push_back(quest);
+            quests.erase(0, pos + 1);
+        }
+    }
+
+    // Side quests
+    if (getline(file, line)) {
+        istringstream ss(line);
+        size_t n;
+        ss >> n;
+        sideQuestList.clear();
+        string quests;
+        getline(ss, quests);
+        size_t pos = 0;
+        while ((pos = quests.find('|')) != string::npos) {
+            string sq = quests.substr(0, pos);
+            if (!sq.empty()) {
+                size_t comma = sq.find(',');
+                string name = sq.substr(0, comma);
+                bool completed = (sq.substr(comma + 1) == "1");
+                sideQuestList.push_back({name, completed});
+            }
+            quests.erase(0, pos + 1);
+        }
+    }
 
     file.close();
 }
 
-//get current date
 int getCurrentDate() {
     time_t t = time(nullptr);
     tm* now = localtime(&t);
     return (now->tm_year + 1900) * 10000 + (now->tm_mon + 1) * 100 + now->tm_mday;
 }
 
-//reset daily quests if date has changed
 void dailyResetCheck() {
     int today = getCurrentDate();
-
     if (today != lastDailyDate) {
-
-        player.dailyTasksCompleted = 0;   // reset daily tasks
-        // player.stamina = 100;          // optional: reset stamina daily
-
+        player.dailyTasksCompleted = 0;
         lastDailyDate = today;
-        savePlayerData();
+        saveData();
     }
 }
 
-//error handling
 int safeInput() {
     int x;
     cin >> x;
-
     while (cin.fail()) {
         cin.clear();
         cin.ignore(1000, '\n');
         cout << "Please enter a number: ";
         cin >> x;
     }
-
     cin.ignore(1000, '\n');
     return x;
 }
 
-//  MAIN 
-int main() {
-    loadPlayerData(); // <-- load previous progress first
-
-    // Only ask for name if no data is loaded (name is empty)
-    if (player.name.empty()) {
-        cout << "Enter your player name: ";
-        getline(cin, player.name);
-    } else {
-        cout << "Welcome back, " << player.name << "!\n";
+// COMPANION FUNCTIONS
+void gainCompanionEXP(int amount) {
+    if (companion.type == NONE) {
+        cout << "No companion to gain EXP!\n";
+        return;
     }
 
-    dailyResetCheck(); // reset daily stats if needed
+    companion.exp += amount;
+    companion.mood = min(100, companion.mood + 5);
+    companion.trust = min(100, companion.trust + 2);
 
-    mainMenu();
+    cout << "Your companion gained " << amount << " EXP!\n";
 
-    savePlayerData(); // <-- save progress on exit
-    return 0;
+    while (companion.exp >= 100) {
+        companion.exp -= 100;
+        companion.level++;
+        companion.bondLevel = (companion.level / 5) + 1;
+
+        cout << "\n🎉 LEVEL UP! Your companion is now Level " << companion.level << "!\n";
+
+        // Show appropriate level-up message for current companion type
+        switch(companion.type) {
+            // BYTEBUN family
+            case BYTEBUN:  cout << "(\\_ /)\n ( •_•)✨  ByteBun leveled up!\n / >💾\n"; break;
+            case DATABUN:  cout << "(\\_ /)\n ( •ᴗ•)⚡  Databun leveled up!\n / >💿\n"; break;
+            case MEGABUN:  cout << "(\\_ /)\n ( •ω•)⚡  Megabun leveled up!\n / >💻\n"; break;
+            case SYSBUN:   cout << "(\\_ /)\n ( ⚆_⚆)🌟  SysBun leveled up!\n / >🖥️\n"; break;
+
+            // GEARCUB family
+            case GEARCUB:     cout << "ʕ•ᴥ•ʔ⚙️  Gearcub leveled up!\n"; break;
+            case GEARLING:    cout << "ʕ•̀ᴥ•́ʔ⚙️⚙️  Gearling leveled up!\n"; break;
+            case MECHABEAR:   cout << "ʕ•̀ᴥ•́ʔ🔩⚙️  MechaBear leveled up!\n"; break;
+            case CLOCKWORKBEAST: cout << "ʕ•̿ᴥ•̿ʔ⚡⚙️  Clockwork Beast leveled up!\n"; break;
+
+            // PIXELLIMP family
+            case PIXELLIMP:  cout << "(>*-*)>☆  Pixelimp leveled up!\n"; break;
+            case SUB_PIXEL:  cout << "(>^-^)>★  Sub-Pixel leveled up!\n"; break;
+            case CHROMXEL:   cout << "(>◕-◕)>✨  Chromxel leveled up!\n"; break;
+            case MEGA_PIXEL: cout << "(>⚆-⚆)>💫  Mega-Pixel leveled up!\n"; break;
+
+            default: break;
+        }
+
+        checkEvolution();
+    }
 }
 
-
-
-
-//  PLAYER FUNCTIONS 
-void gainEXP(int amount) {
-    player.exp += amount;
-    cout << "You gained " << amount << " EXP!\n";
-    while (player.exp >= 100) {
-        player.exp -= 100;
-        player.level++;
-        cout << "🎉 Level Up! You are now Level " << player.level << "!\n";
+void checkEvolution() {
+    int oldStage = companion.evolutionStage;
+    
+    // Evolution based on level and streaks
+    if (companion.type >= BYTEBUN && companion.type <= SYSBUN) {
+        if (companion.level >= 25 && player.studyStreak >= 30) {
+            companion.evolutionStage = 3;
+            companion.type = SYSBUN;
+        } else if (companion.level >= 15) {
+            companion.evolutionStage = 2;
+            companion.type = MEGABUN;
+        } else if (companion.level >= 8) {
+            companion.evolutionStage = 1;
+            companion.type = DATABUN;
+        }
+    } else if (companion.type >= GEARCUB && companion.type <= CLOCKWORKBEAST) {
+        if (companion.level >= 25 && player.bossesDefeated >= 5) {
+            companion.evolutionStage = 3;
+            companion.type = CLOCKWORKBEAST;
+        } else if (companion.level >= 15) {
+            companion.evolutionStage = 2;
+            companion.type = MECHABEAR;
+        } else if (companion.level >= 8) {
+            companion.evolutionStage = 1;
+            companion.type = GEARLING;
+        }
+    } else if (companion.type >= PIXELLIMP && companion.type <= MEGA_PIXEL) {
+        if (companion.level >= 25 && companion.bondLevel >= 10) {
+            companion.evolutionStage = 3;
+            companion.type = MEGA_PIXEL;
+        } else if (companion.level >= 15) {
+            companion.evolutionStage = 2;
+            companion.type = CHROMXEL;
+        } else if (companion.level >= 8) {
+            companion.evolutionStage = 1;
+            companion.type = SUB_PIXEL;
+        }
     }
+    
+    if (oldStage != companion.evolutionStage) {
+        clearScreen();
+        cout << "\n✨ EVOLUTION! ✨\n";
+        cout << "Your companion has evolved!\n";
+    }
+}
+
+void displayCompanion() {
+    if (companion.type == NONE) {
+        cout << "No companion yet!\n";
+        return;
+    }
+    clearScreen();
+    cout << "\n╔════════════ COMPANION ════════════╗\n";
+    
+    switch(companion.type) {
+        case BYTEBUN:
+            cout << "  (\\_ /)\n   ( •_•)\n   / >💾\n";
+            cout << "  Bytebun (Starter)\n";
+            break;
+        case DATABUN:
+            cout << "  (\\_ /)\n   ( •ᴗ•)✨\n   / >💿\n";
+            cout << "  Databun (Evolved)\n";
+            break;
+        case MEGABUN:
+            cout << "  (\\_ /)\n   ( •ω•)⚡\n   / >💻\n";
+            cout << "  Megabun (Mega)\n";
+            break;
+        case SYSBUN:
+            cout << "  (\\_ /)\n   ( ⚆_⚆)🌟\n   / >🖥️\n";
+            cout << "  SysBun (LEGENDARY)\n";
+            break;
+        case GEARCUB:
+            cout << "  ʕ•ᴥ•ʔ⚙️\n";
+            cout << "  Gearcub (Starter)\n";
+            break;
+        case GEARLING:
+            cout << "  ʕ•̀ᴥ•́ʔ⚙️⚙️\n";
+            cout << "  Gearling (Evolved)\n";
+            break;
+        case MECHABEAR:
+            cout << "  ʕ•̀ᴥ•́ʔ🔩⚙️\n";
+            cout << "  MechaBear (Mega)\n";
+            break;
+        case CLOCKWORKBEAST:
+            cout << "  ʕ•̿ᴥ•̿ʔ⚡⚙️\n";
+            cout << "  Clockwork Beast (LEGENDARY)\n";
+            break;
+        case PIXELLIMP:
+            cout << "  (>*-*)>☆\n";
+            cout << "  Pixelimp (Starter)\n";
+            break;
+        case SUB_PIXEL:
+            cout << "  (>^-^)>★\n";
+            cout << "  Sub-Pixel (Evolved)\n";
+            break;
+        case CHROMXEL:
+            cout << "  (>◕-◕)>✨\n";
+            cout << "  Chromxel (Mega)\n";
+            break;
+        case MEGA_PIXEL:
+            cout << "  (>⚆-⚆)>💫\n";
+            cout << "  Mega-Pixel (LEGENDARY)\n";
+            break;
+    }
+    
+    cout << "\n  Level: " << companion.level << "\n";
+    displayBar("  EXP", companion.exp, 100, 15);
+    displayBar("  Mood", companion.mood, 100, 15);
+    displayBar("  Trust", companion.trust, 100, 15);
+    cout << "  Energy: " << companion.energy << "/5\n";
+    cout << "  Bond Level: " << companion.bondLevel << "\n";
+    cout << "╚═══════════════════════════════════╝\n";
 }
 
 bool reduceStamina(int amount) {
+    clearScreen();
     if (player.stamina < amount) {
         cout << "Not enough stamina! Current: " << player.stamina << "/100\n";
         return false;
@@ -190,60 +408,70 @@ bool reduceStamina(int amount) {
 
 void displayBar(const string &label, int current, int max, int width = 20) {
     int filled = (current * width) / max;
-    cout << "│  " << label << ": [";
+    cout << label << ": [";
     for (int i = 0; i < width; i++) {
-        if (i < filled) cout << "■  ";  // filled part
-        else cout << "□";              // empty part
+        if (i < filled) cout << "■";
+        else cout << "□";
     }
     cout << "] " << current << "/" << max << "\n";
 }
 
-//  MAIN MENU 
+// MAIN MENU
 void mainMenu() {
     int option;
-
+    
     while (true) {
-        cout << "┌─────────────────────°❀⋆.ೃ࿔*:･°❀⋆.ೃ࿔*:────────────────────┐\n";
+        clearScreen();
+        
+        cout << "┌─────────────────────°❀⋆.ೃ࿔*:･°❀⋆.ೃ࿔*:─────────────────────┐\n";
         cout << "│                                                          │\n";
         cout << "│                      T A S K B O X D                     │\n";
         cout << "│                \"Gamify your Study Grind!\"                │\n";
         cout << "│                                                          │\n";
         cout << "├──────────────────────────────────────────────────────────┤\n";
         cout << "│                                                          │\n";
-        cout << "│  Player: " << player.name << player.equippedTitle <<"                           Level: " << player.level << "\n";
-        displayBar("XP", player.exp, 100);
-        displayBar("Stamina", player.stamina, 100);
+        cout << "│  Player: " << player.name << "                                        │\n";
+        displayBar("│  Stamina", player.stamina, 100);
+        
+        if (companion.type != NONE) {
+            cout << "│                                                          │\n";
+            cout << "│  Companion Level: " << companion.level << "                                  │\n";
+            displayBar("│  Companion EXP", companion.exp, 100);
+        }
+        
         cout << "│                                                          │\n";
         cout << "│----------------------------------------------------------│\n";
         cout << "│                                                          │\n";
-        cout << "│ ✦ Quick Actions . ݁₊ ⊹ . ݁˖ . ݁                             │\n";
+        cout << "│ ✦ Quick Actions . ˚₊ ⊹ . ˚˖ . ˚                             │\n";
         cout << "│                                                          │\n";
         cout << "│   ➀ Quests               ➁ Companion                     │\n";
-        cout << "│   ➂ Stats & Progress                                     │\n";
-        cout << "│   ➃ Exit                                                 │\n";
+        cout << "│   ➂ Exit                                                 │\n";
         cout << "│                                                          │\n";
         cout << "└──────────────────────────────────────────────────────────┘\n";
-
+        
         cout << "\nEnter option: ";
         option = safeInput();
-
-
+        
         switch(option) {
             case 1: questMenu(); break;
-            case 2: COMPANIONMENU (); break;
-            case 3: statsMenu(); break;
-            case 4: cout << "Exiting...\n"; 
+            case 2: COMPANIONMENU(); break;
+            case 3:                 
+                cout << "Exiting...\n";
+                saveData();
                 return;
+
+
             default: cout << "Invalid option!\n";
         }
     }
 }
 
-//  QUEST MENU 
+// QUEST MENU
 void questMenu() {
     int choice;
-
+    
     do {
+        clearScreen();
         cout << "\n┌──────────────────── QUESTS ────────────────────┐\n";
         cout << "│  1. Daily Quests                               │\n";
         cout << "│  2. Boss Fights                                │\n";
@@ -253,7 +481,7 @@ void questMenu() {
         cout << "└────────────────────────────────────────────────┘\n";
         cout << "Choose an option: ";
         choice = safeInput();
-
+        
         switch(choice) {
             case 1: dailyQuestsMenu(); break;
             case 2: bossFight(); break;
@@ -264,23 +492,19 @@ void questMenu() {
     } while(choice != 0);
 }
 
-//  DAILY QUESTS 
-void dailyQuestsMenu() {
-    int today = getCurrentDate();
-                if (today != lastDailyDate) {
-                    cout << "📅 New day! Daily quests are reset.\n";
-                    // you could also reload tasks from a saved list if you want
-                }
-
+// DAILY QUESTS
+void dailyQuestsMenu() { 
     int option;
+    
     do {
+        clearScreen();
         cout << "\n─────────── DAILY QUESTS ───────────\n";
         cout << "  1. Add Quest                    \n";
         cout << "  2. Complete Quest               \n";
         cout << "                                  \n";
         if (!dailyQuests.empty()) {
             cout << " Your Quests:                     \n";
-            for (int i = 0; i < dailyQuests.size(); i++)
+            for (size_t i = 0; i < dailyQuests.size(); i++)
                 cout << "  " << i + 1 << ". " << dailyQuests[i] << "\n";
         } else {
             cout << " - No quests yet -                \n";
@@ -290,69 +514,75 @@ void dailyQuestsMenu() {
         cout << "──────────────────────────────────\n";
         cout << "Choose: ";
         option = safeInput();
-
+        
         if (option == 1) {
             string quest;
             cout << "Enter quest description: ";
             getline(cin, quest);
             dailyQuests.push_back(quest);
             cout << "Quest added!\n";
+            saveData(); // Save after adding quest
         } 
         else if (option == 2) {
-            if (dailyQuests.empty()) cout << "No quests to complete!\n";
-                else {
-                    int index;
-                    cout << "Enter quest number to complete: ";
-                    index = safeInput();
-                    if (index > 0 && index <= dailyQuests.size()) {
-                        if (reduceStamina(5)) gainEXP(10); // Daily quest: 5 stamina, 10 EXP
-
+            if (dailyQuests.empty()) {
+                cout << "No quests to complete!\n";
+            } else {
+                int index;
+                cout << "Enter quest number to complete: ";
+                index = safeInput();
+                if (index > 0 && index <= dailyQuests.size()) {
+                    if (reduceStamina(5)) {
+                        gainCompanionEXP(10); // Companion gains EXP
                         dailyQuests.erase(dailyQuests.begin() + (index - 1));
                         cout << "Quest completed!\n";
-
-                        // --- STREAK LOGIC ---
+                        
                         int today = getCurrentDate();
                         if (today != lastDailyDate) {
-                            if (today == lastDailyDate + 1) { // consecutive day
+                            if (today == lastDailyDate + 1) {
                                 player.studyStreak++;
-                            } else { // missed a day
+                            } else {
                                 player.studyStreak = 1;
                             }
                             lastDailyDate = today;
-                            player.dailyTasksCompleted = 0; // reset daily task count
+                            player.dailyTasksCompleted = 0;
                             cout << "🌟 Daily streak: " << player.studyStreak << " day(s)!\n";
-                            savePlayerData(); // save immediately
                         }
-
-                        player.dailyTasksCompleted++; // count tasks for achievements
-                        checkAchievements();           // auto-check achievements
-                    } else cout << "Invalid quest number!\n";
+                        
+                        player.dailyTasksCompleted++;
+                        saveData(); // Save after completing quest and updating stats
+                    }
+                } else {
+                    cout << "Invalid quest number!\n";
                 }
+            }
         }
-
+        
+        if (option != 0) {
+            cout << "Press Enter to continue...";
+            cin.get();
+        }
+        
     } while(option != 0);
 }
 
-//  SIDE QUESTS 
-void displaySideQuests() {
-    cout << "\n─────────────── SIDE QUESTS ───────────────\n";
-    if (sideQuestList.empty()) cout << " No side quests added yet.             \n";
-    else {
-        for (size_t i = 0; i < sideQuestList.size(); i++) {
-            cout << " " << i + 1 << ". " << sideQuestList[i].name;
-            if (sideQuestList[i].completed) cout << " ✔";
-            cout << "\n";
-        }
-    }
-    cout << " 0. Back                               \n";
-    cout << "────────────────────────────────────────\n";
-}
-
+// SIDE QUESTS
 void sideQuestMenu() {
     int choice;
-
+    
     do {
-        displaySideQuests();
+        clearScreen();
+        cout << "\n─────────────── SIDE QUESTS ───────────────\n";
+        if (sideQuestList.empty()) {
+            cout << " No side quests added yet.             \n";
+        } else {
+            for (size_t i = 0; i < sideQuestList.size(); i++) {
+                cout << " " << i + 1 << ". " << sideQuestList[i].name;
+                if (sideQuestList[i].completed) cout << " ✓";
+                cout << "\n";
+            }
+        }
+        cout << " 0. Back                               \n";
+        cout << "────────────────────────────────────────\n";
         cout << "\n1. Add Side Quest\n2. Complete a Side Quest\nChoose: ";
         choice = safeInput();
         
@@ -360,344 +590,258 @@ void sideQuestMenu() {
             string quest;
             cout << "Enter your side quest (hobby/project): ";
             getline(cin, quest);
-            sideQuestList.push_back({quest,false});
+            sideQuestList.push_back({quest, false});
             cout << "Side quest added!\n";
+            saveData(); // Save after adding side quest
         } 
         else if (choice == 2) {
-            if (sideQuestList.empty()) cout << "No side quests to complete!\n";
-            else {
+            if (sideQuestList.empty()) {
+                cout << "No side quests to complete!\n";
+            } else {
                 int q;
                 cout << "Enter number of quest completed: ";
-                cin >> q;
+                q = safeInput();
                 if (q > 0 && q <= sideQuestList.size()) {
-                    if (reduceStamina(10)) gainEXP(25); // Side quest: 10 stamina, 25 EXP
-                    cout << "Completed: " << sideQuestList[q-1].name << " ✅\n";
-                    sideQuestList.erase(sideQuestList.begin() + (q-1));
-                } else cout << "Invalid choice!\n";
+                    if (reduceStamina(10)) {
+                        gainCompanionEXP(25);
+                        cout << "Completed: " << sideQuestList[q-1].name << " ✅\n";
+                        sideQuestList.erase(sideQuestList.begin() + (q-1));
+                        saveData(); // Save after completing side quest
+                    }
+                } else {
+                    cout << "Invalid choice!\n";
+                }
             }
         }
+        
+        if (choice != 0) {
+            cout << "Press Enter to continue...";
+            cin.get();
+        }
+        
     } while(choice != 0);
 }
 
-//  BOSS FIGHT 
+// BOSS FIGHT
 void displayBoss(const Boss &boss) {
-    cout << "\n══════════════ BOSS FIGHT ══════════════\n";
+    clearScreen();
+    cout << "\n╔══════════════ BOSS FIGHT ══════════════╗\n";
     cout << " 👹 " << boss.name << "\n";
     cout << " HP: [";
-
-    // Display HP bar
-    int barWidth = 30; // width of the HP bar
+    
+    int barWidth = 30;
     int filled = (boss.currentHP * barWidth) / boss.maxHP;
-    for (int i = 0; i < filled; i++) cout << "♥︎";      // filled portion
-    for (int i = filled; i < barWidth; i++) cout << "♡"; // empty portion
+    for (int i = 0; i < filled; i++) cout << "♥︎";
+    for (int i = filled; i < barWidth; i++) cout << "♡";
     cout << "] " << boss.currentHP << "/" << boss.maxHP << "\n\n";
-
-    // boss ASCII art
-     cout << R"(
-                ⠀⠀⠀⠀⠀⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⢀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⢿⡁⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⠟⣧⠀⠀⠀⠀⠀⠀⣀⣀⣀⣀⣀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⣠⣴⣞⡛⠋⠉⠉⠉⠙⠛⠓⠶⣤⣀⠀⠀⠀⣼⠃⠼⣧⣀⣠⣤⣤⣤⣤⣄⣀⣠⡟⠀⢹⡇⠀⣤⣶⠛⠛⠉⠉⠉⠉⠉⠉⠙⠛⠲⢦⣄⡀⠀⠀⠀⠀⠀
-⠉⠉⠉⠙⠳⣄⠀⠀⠀⠀⠀⠀⢈⣽⠗⠀⢀⣿⡀⠷⠛⠉⠁⠀⠀⠀⠀⠈⠿⠋⠀⠀⣸⠇⠀⠀⠹⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠳⣦⡀⠀⠀
-⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⣼⠁⠀⢠⡾⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠰⠟⢷⡀⠀⠀⢻⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣤⣤⣤⣬⣻⣦⠀
-⠀⠀⠀⠀⣰⡏⠀⠀⠀⠀⠀⠀⣿⠀⣰⢟⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢻⡄⠀⣾⡀⠀⠀⠀⠀⠀⠀⠀⢸⠋⠀⠀⠀⠀⠀⠀⠙⠃
-⠀⠀⠀⡴⠿⠖⠒⠶⣦⡀⠀⠀⠹⣧⡏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢿⣼⠃⠁⠀⠀⠀⠀⠀⠀⠀⢸⡆⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠉⣷⠀⠀⠀⢸⠇⠀⠀⠀⠀⠀⣤⡀⠀⠀⠀⣀⡀⠀⠀⠀⠀⠀⢠⣤⠾⠋⠁⠀⠀⠀⣠⡶⠒⠓⠶⢦⣄⣷⡀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⣹⣤⠴⠶⣾⠀⠀⠀⠀⠀⢀⢻⠁⠀⠀⠈⠛⠁⠀⠀⠀⠀⠀⠀⠿⠳⢶⣦⣤⣀⠀⣿⠀⠀⠀⠀⠀⠈⠙⠷⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠛⠁⠀⠀⢹⡗⠀⠀⠀⠀⠛⠉⠉⠉⠙⠛⠶⣦⠄⠀⠀⠀⠀⠀⠀⠀⢸⠃⠀⠉⠳⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠻⢦⣤⣀⡀⠀⠀⠀⠀⠀⠀⣀⠀⠀⡶⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⢻⣟⢻⡟⠛⠛⠛⠹⣦⢰⡇⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠾⠃⠀⠀⠀⠀⠹⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-                )";
 }
 
 void bossFight() {
-    Boss boss = {"Panique Nail", 100, 100};
+    Boss boss = {"Final Exam Monster", 100, 100};
     vector<string> subtasks;
-
+    
     while (boss.currentHP > 0) {
         displayBoss(boss);
         cout << "\n1. Add Attack Task\n2. Complete a Task (Attack Boss!)\n3. Run Away\nChoose: ";
-        int choice;
-        choice = safeInput();
-
+        int choice = safeInput();
+        
         if (choice == 1) {
             string task;
             cout << "Enter an attack task: ";
             getline(cin, task);
             subtasks.push_back(task);
             cout << "Task added!\n";
-        } 
-        else if (choice == 2) {
-            if (subtasks.empty()) cout << "No tasks to attack with!\n";
-            else {
+        } else if (choice == 2) {
+            if (subtasks.empty()) {
+                cout << "No tasks to attack with!\n";
+            } else {
                 int damagePerTask = boss.currentHP / subtasks.size();
                 if (damagePerTask < 1) damagePerTask = 1;
-
+                
                 cout << "Choose task to complete:\n";
                 for (size_t i = 0; i < subtasks.size(); i++)
                     cout << i + 1 << ". " << subtasks[i] << endl;
-
-                int t;
-                cin >> t;
-                if (t>0 && t<=subtasks.size()) {
-                    if (reduceStamina(10)) gainEXP(20); // Boss subtask: 10 stamina, 20 EXP
-                    boss.currentHP -= damagePerTask;
-                    if (boss.currentHP<0) boss.currentHP=0;
-                    cout << "Dealt " << damagePerTask << " damage! Boss HP: " 
-                         << boss.currentHP << "/" << boss.maxHP << "\n";
-                    subtasks.erase(subtasks.begin()+t-1);
-                } else cout << "Invalid task!\n";
+                
+                int t = safeInput();
+                if (t > 0 && t <= subtasks.size()) {
+                    if (reduceStamina(10)) {
+                        gainCompanionEXP(20);
+                        boss.currentHP -= damagePerTask;
+                        if (boss.currentHP < 0) boss.currentHP = 0;
+                        cout << "Dealt " << damagePerTask << " damage! Boss HP: "
+                             << boss.currentHP << "/" << boss.maxHP << "\n";
+                        subtasks.erase(subtasks.begin() + t - 1);
+                    }
+                } else {
+                    cout << "Invalid task!\n";
+                }
             }
-        } 
-        else if (choice == 3) {
+        } else if (choice == 3) {
             cout << "You fled the fight...\n";
             return;
-        } 
-        else cout << "Invalid choice.\n";
+        } else {
+            cout << "Invalid choice.\n";
+        }
+        
+        if (choice != 0) {
+            cout << "Press Enter to continue...";
+            cin.get();
+        }
     }
-
-    cout << "\n🎉 YOU DEFEATED THE BOSS! OMSIM!!\n";
+    
+    clearScreen();
+    player.bossesDefeated++;
+    cout << "\n🎉 YOU DEFEATED THE BOSS!\n";
+    gainCompanionEXP(50); // Big bonus for boss!
+    cout << "\nPress Enter to continue...";
+    cin.get();
 }
 
-enum CompanionType { NONE = 0, BYTEBUN = 1, GEARCUB = 2, PIXELLIMP = 3 };
-CompanionType companion = NONE;
-int mood = 50;
-int bond_lvl = 0;
-int trust = 0;
-
+// COMPANION MENU
 void COMPANIONMENU() {
     int companion_option;
-
+    
     do {
-        cout << "\n┌────────────────────COMPANION────────────────┐\n";
+        clearScreen();
+        
+        if (companion.type != NONE) {
+            displayCompanion();
+        }
+        
+        cout << "\n┌────────────────────COMPANION────────────────────┐\n";
         cout << "│  1. Pick a Companion                           │\n";
-        cout << "│  2. Companion Stats                            │\n";
+        cout << "│  2. View Companion Details                     │\n";
         cout << "│  3. Replace Companion                          │\n";
         cout << "│                                                │\n";
         cout << "│  0. Back                                       │\n";
         cout << "└────────────────────────────────────────────────┘\n";
         cout << "Choose an option: ";
-        cin >> companion_option;
-
+        companion_option = safeInput();
+        
         switch(companion_option) {
             case 1: {
-                if (companion != NONE) {
+                if (companion.type != NONE) {
                     cout << "You already have a companion!\n";
                 } else {
+                    clearScreen();
                     cout << "Choose who you want to grind with everyday!\n";
-                    cout << "1. ByteBun (Cheerful, loves streaks, gains EXP from consistency!)\n";
-                    cout << "2. Gear Cub (Hardworking, thrives in long quests and exams!)\n";
-                    cout << "3. Pixel Limp (Mischievous, random bonuses, dramatic when you procrastinate!)\n";
+                    cout << "1. ByteBun (Cheerful, loves streaks!)\n";
+                    cout << "2. Gear Cub (Hardworking, thrives in challenges!)\n";
+                    cout << "3. Pixel Limp (Mischievous, random bonuses!)\n";
                     cout << "0. Cancel\n";
-
-                    int choice;
-                    cin >> choice;
-
-                    if (choice == 0) {
-                        cout << "Returning to Companion Menu...\n";
-                        break;  // Break out of inner switch to show main companion menu again
-                    }
-
+                    
+                    int choice = safeInput();
+                    
                     switch(choice) {
                         case 1:
-                            companion = BYTEBUN;
+                        clearScreen();
+                            companion.type = BYTEBUN;
+                            companion.level = 1;
+                            companion.exp = 0;
+                            companion.mood = 60;
+                            companion.energy = 5;
+                            companion.bondLevel = 1;
+                            companion.trust = 50;
                             cout << "You picked ByteBun! 🐰💻\n";
-                            cout << "Yay! I'm so glad you picked me! Let's raise bytes everyday!\n";
-                            mood = 60; bond_lvl = 0; trust = 0; // initial stats
+                            cout << "(\\_ /)\n ( •_•)\n / >💾\n";
+                            cout << "Yay! Let's raise bytes everyday!\n";
                             break;
                         case 2:
-                            companion = GEARCUB;
+                        clearScreen();
+                            companion.type = GEARCUB;
+                            companion.level = 1;
+                            companion.exp = 0;
+                            companion.mood = 50;
+                            companion.energy = 5;
+                            companion.bondLevel = 1;
+                            companion.trust = 50;
                             cout << "You picked Gear Cub! 🧸⚙️\n";
-                            cout << "Grr! My gears never stop turning!\n";
-                            mood = 50; bond_lvl = 0; trust = 0;
+                            cout << "ʕ•ᴥ•ʔ⚙️\n";
+                            cout << "Grr! My gears never stop!\n";
                             break;
                         case 3:
-                            companion = PIXELLIMP;
-                            cout << "You picked Pixel Limp! 🐾🎮\n";
-                            cout << "Hehehe, now that you picked me, I don't want you skipping out on me\n";
-                            mood = 40; bond_lvl = 0; trust = 0;
+                        clearScreen();
+                            companion.type = PIXELLIMP;
+                            companion.level = 1;
+                            companion.exp = 0;
+                            companion.mood = 40;
+                            companion.energy = 5;
+                            companion.bondLevel = 1;
+                            companion.trust = 50;
+                            cout << "You picked Pixel Limp! �🎮\n";
+                            cout << "(>*-*)>☆\n";
+                            cout << "Hehe, let's have fun!\n";
+                            break;
+                        case 0:
                             break;
                         default:
-                            cout << "Invalid companion choice!\n";
-                            break;
+                            cout << "Invalid choice!\n";
                     }
                 }
                 break;
             }
-            case 2: // Companion Stats
-                if (companion == NONE) {
+            case 2:
+                if (companion.type == NONE) {
                     cout << "No companion selected yet!\n";
                 } else {
-                    cout << "Companion Stats:\n";
-                    switch(companion) {
-                        case BYTEBUN: cout << "ByteBun\n"; break;
-                        case GEARCUB: cout << "Gear Cub\n"; break;
-                        case PIXELLIMP: cout << "Pixel Limp\n"; break;
-                    }
-                    cout << "Mood: " << mood << endl;
-                    cout << "Bond Level: " << bond_lvl << endl;
-                    cout << "Trust: " << trust << endl;
+                    displayCompanion();
                 }
                 break;
-
-            case 3: // Replace companion
-                if (companion == NONE) {
-                    cout << "You don't have a companion yet, stop being lonely and get one!\n";
+            case 3:
+                if (companion.type == NONE) {
+                    cout << "You don't have a companion yet!\n";
                 } else {
-                    // Show companion-specific message as confirmation prompt
-                    cout << "You currently have ";
-                    switch(companion) {
-                        case BYTEBUN: cout << "ByteBun"; break;
-                        case GEARCUB: cout << "Gear Cub"; break;
-                        case PIXELLIMP: cout << "Pixel Limp"; break;
-                    }
-                    cout << " as your companion.\nAre you sure you want to replace your companion? (y/n): ";
-
+                    clearScreen();
+                    cout << "Are you sure you want to replace your companion? (y/n): ";
                     char confirm;
                     cin >> confirm;
+                    cin.ignore();
                     if (confirm == 'y' || confirm == 'Y') {
-                        companion = NONE;
-                        mood = 0;
-                        bond_lvl = 0;
-                        trust = 0;
-                        cout << "Companion removed. You can now pick a new companion.\n";
+                        companion = Companion();
+                        cout << "Companion removed.\n";
                     } else {
-                        cout << "Companion replacement cancelled.\n";
+                        cout << "Cancelled.\n";
                     }
                 }
                 break;
-
             case 0:
-                cout << "Returning to Main Menu...\n";
                 break;
-
             default:
                 cout << "Invalid choice!\n";
-                break;
         }
-
-        if(companion_option != 0) {
+        
+        if (companion_option != 0) {
             cout << "Press Enter to continue...";
-            cin.ignore();
             cin.get();
         }
+        
     } while(companion_option != 0);
 }
 
-//  STATS MENU 
-void statsMenu() {
-    int choice;
-    do {
-        cout << "\n┌─────────── S T A T S & PROGRESS ───────────┐\n";
-        cout << "│  1. System Status                          │\n";
-        cout << "│  2. Achievements                           │\n";
-        cout << "│  3. Titles                                 │\n";
-        cout << "│                                            │\n";
-        cout << "│  0. Back                                   │\n";
-        cout << "└────────────────────────────────────────────┘\n";
-        cout << "Choose an option: ";
-        choice = safeInput();
+int main() {
+    // Open a new console window
+    AllocConsole();
+     // Set UTF-8 code page
+    SetConsoleOutputCP(65001);
+    SetConsoleCP(65001);
+    // Redirect standard I/O to the new console
+    FILE* fp;
+    freopen_s(&fp, "CONOUT$", "w", stdout);
+    freopen_s(&fp, "CONIN$", "r", stdin);
 
-        switch(choice) {
-            case 1:
-                cout << "Player: " << player.name << "\n";
-                cout << "Level: " << player.level << "\n";
-                cout << "EXP: " << player.exp << "/100\n";
-                cout << "Stamina: " << player.stamina << "/100\n";
-                cout << "Daily Study Streak: " << player.studyStreak << " day(s)\n";
-                cout << "Streak: " << player.studyStreak << " day(s)\n";
-                break;
+    
 
-            case 2:
-                cout << "\nTitles:\n";
-                cout << "Sharp Mind: " << (player.sharpMind ? "✔" : "❌");
-                if (!player.sharpMind) cout << "  (Complete 5 daily tasks in a day)";
-                cout << endl;
+    std::cout << "Welcome to TaskBox!\n";
 
-                cout << "Bookworm: " << (player.bookworm ? "✔" : "❌");
-                if (!player.bookworm) cout << "  (Maintain a 7-day study streak)";
-                cout << endl;
-
-                cout << "Night Owl: " << (player.nightOwl ? "✔" : "❌");
-                if (!player.nightOwl) cout << "  (Complete tasks after 10 PM)";
-                cout << endl;
-
-                cout << "Boss Slayer: " << (player.bossSlayer ? "✔" : "❌");
-                if (!player.bossSlayer) cout << "  (Defeat at least 1 boss)";
-                cout << endl;
-                break;
-            
-            case 3:  // Titles
-                cout << "\nCurrently Equipped Title: " 
-                    << (player.equippedTitle.empty() ? "None" : player.equippedTitle) 
-                    << "\n";
-                equipTitle();
-                break;
-
-            case 0:
-                cout << "Returning to Main Menu...\n"; 
-                break;
-
-            default:
-                cout << "Invalid choice!\n";
-        }
-
-        if(choice != 0) {
-            cout << "Press Enter to continue...";
-            cin.get();
-        }
-
-    } while(choice != 0);
-}
-
-
-//  ACHIEVEMENTS 
-void checkAchievements() {
-    if (player.dailyTasksCompleted >= 5 && !player.sharpMind) {
-        player.sharpMind = true;
-        cout << "🏆 Achievement Unlocked: Sharp Mind — 5 tasks in a day!\n";
+    // Your existing program logic
+    loadData();
+    dailyResetCheck();
+    if (player.name.empty()) {
+        std::cout << "Enter your name: ";
+        std::getline(std::cin, player.name);
     }
-    if (player.studyStreak >= 7 && !player.bookworm) {
-        player.bookworm = true;
-        cout << "🏆 Achievement Unlocked: Bookworm — 7-day study streak!\n";
-    }
-    if (player.lateTasksCompleted > 0 && !player.nightOwl) {
-        player.nightOwl = true;
-        cout << "🏆 Achievement Unlocked: Night Owl — Completed tasks after 10 PM!\n";
-    }
-    if (player.bossesDefeated >= 1 && !player.bossSlayer) { // can adjust weekly
-        player.bossSlayer = true;
-        cout << "🏆 Achievement Unlocked: Boss Slayer — Defeated a boss!\n";
-    }
-}
+    mainMenu();
 
-void equipTitle() {
-    vector<string> availableTitles;
-
-    if (player.sharpMind) availableTitles.push_back("Sharp Mind");
-    if (player.bookworm) availableTitles.push_back("Bookworm");
-    if (player.nightOwl) availableTitles.push_back("Night Owl");
-    if (player.bossSlayer) availableTitles.push_back("Boss Slayer");
-
-    if (availableTitles.empty()) {
-        cout << "You have no titles unlocked yet!\n";
-        return;
-    }
-
-    cout << "\nUnlocked Titles:\n";
-    for (size_t i = 0; i < availableTitles.size(); i++)
-        cout << i + 1 << ". " << availableTitles[i] << endl;
-
-    cout << "Enter number to equip a title: ";
-    int choice;
-    choice = safeInput();
-
-    if (choice > 0 && choice <= availableTitles.size()) {
-        player.equippedTitle = availableTitles[choice - 1];
-        cout << "You equipped the title: " << player.equippedTitle << "!\n";
-    } else {
-        cout << "Invalid choice!\n";
-    }
+    system("pause");
+    return 0;
 }
