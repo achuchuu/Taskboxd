@@ -70,7 +70,8 @@ void savePlayerData() {
         return;
     }
 
-    file << player.level << " "
+    file << player.name << " "
+         << player.level << " "
          << player.exp << " "
          << player.stamina << " "
          << player.studyStreak << " "
@@ -91,7 +92,8 @@ void loadPlayerData() {
         return; // first run
     }
 
-    file >> player.level
+    file >> player.name
+         >> player.level
          >> player.exp
          >> player.stamina
          >> player.studyStreak
@@ -144,21 +146,24 @@ int safeInput() {
 
 //  MAIN 
 int main() {
-    SetConsoleOutputCP(CP_UTF8);
-    SetConsoleCP(CP_UTF8);
-    int today = getCurrentDate();
-    cout << "Today's date: " << today << endl;
+    loadPlayerData(); // <-- load previous progress first
 
-    cout << "Enter your player name: ";
-    getline(cin, player.name);
+    // Only ask for name if no data is loaded (name is empty)
+    if (player.name.empty()) {
+        cout << "Enter your player name: ";
+        getline(cin, player.name);
+    } else {
+        cout << "Welcome back, " << player.name << "!\n";
+    }
 
-    loadPlayerData(); // <-- load previous progress
+    dailyResetCheck(); // reset daily stats if needed
 
     mainMenu();
 
     savePlayerData(); // <-- save progress on exit
     return 0;
 }
+
 
 
 
@@ -187,7 +192,7 @@ void displayBar(const string &label, int current, int max, int width = 20) {
     int filled = (current * width) / max;
     cout << "│  " << label << ": [";
     for (int i = 0; i < width; i++) {
-        if (i < filled) cout << "■";  // filled part
+        if (i < filled) cout << "■  ";  // filled part
         else cout << "□";              // empty part
     }
     cout << "] " << current << "/" << max << "\n";
