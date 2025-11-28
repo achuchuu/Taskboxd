@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <fstream>  
+#include <sstream>  
 
 using namespace std;
 
@@ -58,6 +60,39 @@ void gainEXP(int amount);
 void equipTitle();
 bool reduceStamina(int amount);
 
+// SAVE AND LOAD FUNCTIONS
+void savePlayerData() {
+    ofstream file("playerData.txt");
+    if (!file) {
+        cout << "Error saving player data!\n";
+        return;
+    }
+    file << player.studyStreak << " "
+         << player.dailyTasksCompleted << " "
+         << lastDailyDate << " "
+         << player.sharpMind << " "
+         << player.bookworm << " "
+         << player.nightOwl << " "
+         << player.bossSlayer << "\n";
+    file.close();
+}
+
+void loadPlayerData() {
+    ifstream file("playerData.txt");
+    if (!file) {
+        // First time running; nothing to load
+        return;
+    }
+    file >> player.studyStreak
+         >> player.dailyTasksCompleted
+         >> lastDailyDate
+         >> player.sharpMind
+         >> player.bookworm
+         >> player.nightOwl
+         >> player.bossSlayer;
+    file.close();
+}
+
 //get current date
 int getCurrentDate() {
     time_t t = time(nullptr);
@@ -72,13 +107,15 @@ int main() {
 
     cout << "Enter your player name: ";
     getline(cin, player.name);
-    
-    //Classes
-    
-    
+
+    loadPlayerData(); // <-- load previous progress
+
     mainMenu();
+
+    savePlayerData(); // <-- save progress on exit
     return 0;
 }
+
 
 
 //  PLAYER FUNCTIONS 
@@ -229,9 +266,15 @@ void dailyQuestsMenu() {
                         // --- STREAK LOGIC ---
                         int today = getCurrentDate();
                         if (today != lastDailyDate) {
-                            player.studyStreak++; // add 1 to streak
+                            if (today == lastDailyDate + 1) { // consecutive day
+                                player.studyStreak++;
+                            } else { // missed a day
+                                player.studyStreak = 1;
+                            }
                             lastDailyDate = today;
+                            player.dailyTasksCompleted = 0; // reset daily task count
                             cout << "🌟 Daily streak: " << player.studyStreak << " day(s)!\n";
+                            savePlayerData(); // save immediately
                         }
 
                         player.dailyTasksCompleted++; // count tasks for achievements
@@ -381,11 +424,11 @@ void statsMenu() {
     int choice;
     do {
         cout << "\n┌─────────── S T A T S & PROGRESS ───────────┐\n";
-        cout << "│  1. System Status                           │\n";
-        cout << "│  2. Achievements                            │\n";
-        cout << "│  3. Titles                                  │\n";
-        cout << "│                                             │\n";
-        cout << "│  0. Back                                    │\n";
+        cout << "│  1. System Status                          │\n";
+        cout << "│  2. Achievements                           │\n";
+        cout << "│  3. Titles                                 │\n";
+        cout << "│                                            │\n";
+        cout << "│  0. Back                                   │\n";
         cout << "└────────────────────────────────────────────┘\n";
         cout << "Choose an option: ";
         cin >> choice;
