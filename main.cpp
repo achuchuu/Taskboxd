@@ -10,6 +10,19 @@ struct Player {
     int level = 1;
     int exp = 0;
     int stamina = 100;
+    string equippedTitle = "";
+
+    // Track achievements
+    bool sharpMind = false;
+    bool bookworm = false;
+    bool nightOwl = false;
+    bool bossSlayer = false;
+
+    // Track daily stats
+    int dailyTasksCompleted = 0;
+    int studyStreak = 0;
+    int lateTasksCompleted = 0;
+    int bossesDefeated = 0;
 };
 
 struct SideQuest {
@@ -28,6 +41,8 @@ Player player;
 vector<string> dailyQuests;
 vector<SideQuest> sideQuestList;
 
+int lastDailyDate = 0;
+
 // FUNCTION DECLARATIONS
 void mainMenu();
 void questMenu();
@@ -35,21 +50,36 @@ void dailyQuestsMenu();
 void sideQuestMenu();
 void bossFight();
 void statsMenu();
-void inventoryMenu();
-void settingsMenu();
 void displayBar();
 void displayBoss(const Boss &boss);
-
+void checkAchievements();
+void gutCurrentDate();
 void gainEXP(int amount);
+void equipTitle();
 bool reduceStamina(int amount);
+
+//get current date
+int getCurrentDate() {
+    time_t t = time(nullptr);
+    tm* now = localtime(&t);
+    return (now->tm_year + 1900) * 10000 + (now->tm_mon + 1) * 100 + now->tm_mday;
+}
 
 //  MAIN 
 int main() {
+    int today = getCurrentDate();
+    cout << "Today's date: " << today << endl;
+
     cout << "Enter your player name: ";
     getline(cin, player.name);
+    
+    //Classes
+    
+    
     mainMenu();
     return 0;
 }
+
 
 //  PLAYER FUNCTIONS 
 void gainEXP(int amount) {
@@ -94,7 +124,7 @@ void mainMenu() {
         cout << "│                                                          │\n";
         cout << "├──────────────────────────────────────────────────────────┤\n";
         cout << "│                                                          │\n";
-        cout << "│  Player: " << player.name << "                           Level: " << player.level << "\n";
+        cout << "│  Player: " << player.name << player.equippedTitle <<"                           Level: " << player.level << "\n";
         displayBar("XP", player.exp, 100);
         displayBar("Stamina", player.stamina, 100);
         cout << "│                                                          │\n";
@@ -103,8 +133,8 @@ void mainMenu() {
         cout << "│ ✦ Quick Actions . ݁₊ ⊹ . ݁˖ . ݁                             │\n";
         cout << "│                                                          │\n";
         cout << "│   ➀ Quests               ➁ Companion                     │\n";
-        cout << "│   ➂ Stats & Progress     ➃ Inventory                     │\n";
-        cout << "│   ➄ Exit                                                 │\n";
+        cout << "│   ➂ Stats & Progress                                     │\n";
+        cout << "│   ➃ Exit                                                 │\n";
         cout << "│                                                          │\n";
         cout << "└──────────────────────────────────────────────────────────┘\n";
 
@@ -115,9 +145,7 @@ void mainMenu() {
             case 1: questMenu(); break;
             case 2: cout << "Companion menu not implemented yet!\n"; break;
             case 3: statsMenu(); break;
-            case 4: inventoryMenu(); break;
-            case 5: 
-                cout << "Exiting...\n"; 
+            case 4: cout << "Exiting...\n"; 
                 return;
             default: cout << "Invalid option!\n";
         }
@@ -151,11 +179,17 @@ void questMenu() {
 
 //  DAILY QUESTS 
 void dailyQuestsMenu() {
+    int today = getCurrentDate();
+                if (today != lastDailyDate) {
+                    cout << "📅 New day! Daily quests are reset.\n";
+                    // you could also reload tasks from a saved list if you want
+                }
+
     int option;
     cin.ignore();
 
     do {
-        cout << "\n────────── DAILY QUESTS ──────────\n";
+        cout << "\n─────────── DAILY QUESTS ───────────\n";
         cout << "  1. Add Quest                    \n";
         cout << "  2. Complete Quest               \n";
         cout << "                                  \n";
@@ -182,23 +216,36 @@ void dailyQuestsMenu() {
         } 
         else if (option == 2) {
             if (dailyQuests.empty()) cout << "No quests to complete!\n";
-            else {
-                int index;
-                cout << "Enter quest number to complete: ";
-                cin >> index;
-                if (index > 0 && index <= dailyQuests.size()) {
-                    if (reduceStamina(5)) gainEXP(10); // Daily quest: 5 stamina, 10 EXP
-                    dailyQuests.erase(dailyQuests.begin() + (index - 1));
-                    cout << "Quest completed!\n";
-                } else cout << "Invalid quest number!\n";
-            }
+                else {
+                    int index;
+                    cout << "Enter quest number to complete: ";
+                    cin >> index;
+                    if (index > 0 && index <= dailyQuests.size()) {
+                        if (reduceStamina(5)) gainEXP(10); // Daily quest: 5 stamina, 10 EXP
+
+                        dailyQuests.erase(dailyQuests.begin() + (index - 1));
+                        cout << "Quest completed!\n";
+
+                        // --- STREAK LOGIC ---
+                        int today = getCurrentDate();
+                        if (today != lastDailyDate) {
+                            player.studyStreak++; // add 1 to streak
+                            lastDailyDate = today;
+                            cout << "🌟 Daily streak: " << player.studyStreak << " day(s)!\n";
+                        }
+
+                        player.dailyTasksCompleted++; // count tasks for achievements
+                        checkAchievements();           // auto-check achievements
+                    } else cout << "Invalid quest number!\n";
+                }
         }
+
     } while(option != 0);
 }
 
 //  SIDE QUESTS 
 void displaySideQuests() {
-    cout << "\n────────────── SIDE QUESTS ──────────────\n";
+    cout << "\n─────────────── SIDE QUESTS ───────────────\n";
     if (sideQuestList.empty()) cout << " No side quests added yet.             \n";
     else {
         for (size_t i = 0; i < sideQuestList.size(); i++) {
@@ -278,7 +325,7 @@ void displayBoss(const Boss &boss) {
 }
 
 void bossFight() {
-    Boss boss = {"Shadow King", 100, 100};
+    Boss boss = {"Panique Nail", 100, 100};
     vector<string> subtasks;
     cin.ignore();
 
@@ -325,7 +372,7 @@ void bossFight() {
         else cout << "Invalid choice.\n";
     }
 
-    cout << "\n🎉 YOU DEFEATED THE BOSS!\n";
+    cout << "\n🎉 YOU DEFEATED THE BOSS! OMSIM!!\n";
 }
 
 
@@ -333,22 +380,56 @@ void bossFight() {
 void statsMenu() {
     int choice;
     do {
-        cout << "\n┌─────────── S T A T S  &  P R O G R E S S ───────────┐\n";
-        cout << "│   1. System Status                                   │\n";
-        cout << "│   2. Achievements                                    │\n";
-        cout << "│      - Earned Titles                                 │\n";
-        cout << "│      - Completed Achievements                        │\n";
-        cout << "│                                                      │\n";
-        cout << "│   0. Back                                             │\n";
-        cout << "└──────────────────────────────────────────────────────┘\n";
+        cout << "\n┌─────────── S T A T S & PROGRESS ───────────┐\n";
+        cout << "│  1. System Status                           │\n";
+        cout << "│  2. Achievements                            │\n";
+        cout << "│  3. Titles                                  │\n";
+        cout << "│                                             │\n";
+        cout << "│  0. Back                                    │\n";
+        cout << "└────────────────────────────────────────────┘\n";
         cout << "Choose an option: ";
         cin >> choice;
 
         switch(choice) {
-            case 1: cout << "System Status shown here.\n"; break;
-            case 2: cout << "Achievements shown here.\n"; break;
-            case 0: cout << "Returning to Main Menu...\n"; break;
-            default: cout << "Invalid choice!\n";
+            case 1:
+                cout << "Player: " << player.name << "\n";
+                cout << "Level: " << player.level << "\n";
+                cout << "EXP: " << player.exp << "/100\n";
+                cout << "Stamina: " << player.stamina << "/100\n";
+                break;
+
+            case 2:
+                cout << "\nTitles:\n";
+                cout << "Sharp Mind: " << (player.sharpMind ? "✔" : "❌");
+                if (!player.sharpMind) cout << "  (Complete 5 daily tasks in a day)";
+                cout << endl;
+
+                cout << "Bookworm: " << (player.bookworm ? "✔" : "❌");
+                if (!player.bookworm) cout << "  (Maintain a 7-day study streak)";
+                cout << endl;
+
+                cout << "Night Owl: " << (player.nightOwl ? "✔" : "❌");
+                if (!player.nightOwl) cout << "  (Complete tasks after 10 PM)";
+                cout << endl;
+
+                cout << "Boss Slayer: " << (player.bossSlayer ? "✔" : "❌");
+                if (!player.bossSlayer) cout << "  (Defeat at least 1 boss)";
+                cout << endl;
+                break;
+            
+            case 3:  // Titles
+                cout << "\nCurrently Equipped Title: " 
+                    << (player.equippedTitle.empty() ? "None" : player.equippedTitle) 
+                    << "\n";
+                equipTitle();
+                break;
+
+            case 0:
+                cout << "Returning to Main Menu...\n"; 
+                break;
+
+            default:
+                cout << "Invalid choice!\n";
         }
 
         if(choice != 0) {
@@ -360,33 +441,52 @@ void statsMenu() {
     } while(choice != 0);
 }
 
-//  INVENTORY MENU 
-void inventoryMenu() {
+
+//  ACHIEVEMENTS 
+void checkAchievements() {
+    if (player.dailyTasksCompleted >= 5 && !player.sharpMind) {
+        player.sharpMind = true;
+        cout << "🏆 Achievement Unlocked: Sharp Mind — 5 tasks in a day!\n";
+    }
+    if (player.studyStreak >= 7 && !player.bookworm) {
+        player.bookworm = true;
+        cout << "🏆 Achievement Unlocked: Bookworm — 7-day study streak!\n";
+    }
+    if (player.lateTasksCompleted > 0 && !player.nightOwl) {
+        player.nightOwl = true;
+        cout << "🏆 Achievement Unlocked: Night Owl — Completed tasks after 10 PM!\n";
+    }
+    if (player.bossesDefeated >= 1 && !player.bossSlayer) { // can adjust weekly
+        player.bossSlayer = true;
+        cout << "🏆 Achievement Unlocked: Boss Slayer — Defeated a boss!\n";
+    }
+}
+
+void equipTitle() {
+    vector<string> availableTitles;
+
+    if (player.sharpMind) availableTitles.push_back("Sharp Mind");
+    if (player.bookworm) availableTitles.push_back("Bookworm");
+    if (player.nightOwl) availableTitles.push_back("Night Owl");
+    if (player.bossSlayer) availableTitles.push_back("Boss Slayer");
+
+    if (availableTitles.empty()) {
+        cout << "You have no titles unlocked yet!\n";
+        return;
+    }
+
+    cout << "\nUnlocked Titles:\n";
+    for (size_t i = 0; i < availableTitles.size(); i++)
+        cout << i + 1 << ". " << availableTitles[i] << endl;
+
+    cout << "Enter number to equip a title: ";
     int choice;
-    do {
-        cout << "\n┌──────────────── I N V E N T O R Y ────────────────┐\n";
-        cout << "│   1. Classes                                       │\n";
-        cout << "│   2. Titles                                        │\n";
-        cout << "│   3. Potions                                       │\n";
-        cout << "│                                                    │\n";
-        cout << "│   0. Back                                          │\n";
-        cout << "└────────────────────────────────────────────────────┘\n";
-        cout << "Choose an option: ";
-        cin >> choice;
+    cin >> choice;
 
-        switch(choice) {
-            case 1: cout << "Classes shown here.\n"; break;
-            case 2: cout << "Titles shown here.\n"; break;
-            case 3: cout << "Potions shown here.\n"; break;
-            case 0: cout << "Returning to Main Menu...\n"; break;
-            default: cout << "Invalid choice!\n";
-        }
-
-        if(choice != 0) {
-            cout << "Press Enter to continue...";
-            cin.ignore();
-            cin.get();
-        }
-
-    } while(choice != 0);
+    if (choice > 0 && choice <= availableTitles.size()) {
+        player.equippedTitle = availableTitles[choice - 1];
+        cout << "You equipped the title: " << player.equippedTitle << "!\n";
+    } else {
+        cout << "Invalid choice!\n";
+    }
 }
