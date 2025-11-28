@@ -3,6 +3,7 @@
 #include <string>
 #include <fstream>  
 #include <sstream>  
+#include <windows.h>
 
 using namespace std;
 
@@ -59,6 +60,7 @@ void gutCurrentDate();
 void gainEXP(int amount);
 void equipTitle();
 bool reduceStamina(int amount);
+void COMPANIONMENU ();
 
 // SAVE AND LOAD FUNCTIONS
 void savePlayerData() {
@@ -102,6 +104,8 @@ int getCurrentDate() {
 
 //  MAIN 
 int main() {
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
     int today = getCurrentDate();
     cout << "Today's date: " << today << endl;
 
@@ -180,7 +184,7 @@ void mainMenu() {
 
         switch(option) {
             case 1: questMenu(); break;
-            case 2: cout << "Companion menu not implemented yet!\n"; break;
+            case 2: COMPANIONMENU (); break;
             case 3: statsMenu(); break;
             case 4: cout << "Exiting...\n"; 
                 return;
@@ -418,6 +422,130 @@ void bossFight() {
     cout << "\n🎉 YOU DEFEATED THE BOSS! OMSIM!!\n";
 }
 
+enum CompanionType { NONE = 0, BYTEBUN = 1, GEARCUB = 2, PIXELLIMP = 3 };
+CompanionType companion = NONE;
+int mood = 50;
+int bond_lvl = 0;
+int trust = 0;
+
+void COMPANIONMENU() {
+    int companion_option;
+
+    do {
+        cout << "\n┌────────────────────COMPANION────────────────┐\n";
+        cout << "│  1. Pick a Companion                           │\n";
+        cout << "│  2. Companion Stats                            │\n";
+        cout << "│  3. Replace Companion                          │\n";
+        cout << "│                                                │\n";
+        cout << "│  0. Back                                       │\n";
+        cout << "└────────────────────────────────────────────────┘\n";
+        cout << "Choose an option: ";
+        cin >> companion_option;
+
+        switch(companion_option) {
+            case 1: {
+                if (companion != NONE) {
+                    cout << "You already have a companion!\n";
+                } else {
+                    cout << "Choose who you want to grind with everyday!\n";
+                    cout << "1. ByteBun (Cheerful, loves streaks, gains EXP from consistency!)\n";
+                    cout << "2. Gear Cub (Hardworking, thrives in long quests and exams!)\n";
+                    cout << "3. Pixel Limp (Mischievous, random bonuses, dramatic when you procrastinate!)\n";
+                    cout << "0. Cancel\n";
+
+                    int choice;
+                    cin >> choice;
+
+                    if (choice == 0) {
+                        cout << "Returning to Companion Menu...\n";
+                        break;  // Break out of inner switch to show main companion menu again
+                    }
+
+                    switch(choice) {
+                        case 1:
+                            companion = BYTEBUN;
+                            cout << "You picked ByteBun! 🐰💻\n";
+                            cout << "Yay! I'm so glad you picked me! Let's raise bytes everyday!\n";
+                            mood = 60; bond_lvl = 0; trust = 0; // initial stats
+                            break;
+                        case 2:
+                            companion = GEARCUB;
+                            cout << "You picked Gear Cub! 🧸⚙️\n";
+                            cout << "Grr! My gears never stop turning!\n";
+                            mood = 50; bond_lvl = 0; trust = 0;
+                            break;
+                        case 3:
+                            companion = PIXELLIMP;
+                            cout << "You picked Pixel Limp! 🐾🎮\n";
+                            cout << "Hehehe, now that you picked me, I don't want you skipping out on me\n";
+                            mood = 40; bond_lvl = 0; trust = 0;
+                            break;
+                        default:
+                            cout << "Invalid companion choice!\n";
+                            break;
+                    }
+                }
+                break;
+            }
+            case 2: // Companion Stats
+                if (companion == NONE) {
+                    cout << "No companion selected yet!\n";
+                } else {
+                    cout << "Companion Stats:\n";
+                    switch(companion) {
+                        case BYTEBUN: cout << "ByteBun\n"; break;
+                        case GEARCUB: cout << "Gear Cub\n"; break;
+                        case PIXELLIMP: cout << "Pixel Limp\n"; break;
+                    }
+                    cout << "Mood: " << mood << endl;
+                    cout << "Bond Level: " << bond_lvl << endl;
+                    cout << "Trust: " << trust << endl;
+                }
+                break;
+
+            case 3: // Replace companion
+                if (companion == NONE) {
+                    cout << "You don't have a companion yet, stop being lonely and get one!\n";
+                } else {
+                    // Show companion-specific message as confirmation prompt
+                    cout << "You currently have ";
+                    switch(companion) {
+                        case BYTEBUN: cout << "ByteBun"; break;
+                        case GEARCUB: cout << "Gear Cub"; break;
+                        case PIXELLIMP: cout << "Pixel Limp"; break;
+                    }
+                    cout << " as your companion.\nAre you sure you want to replace your companion? (y/n): ";
+
+                    char confirm;
+                    cin >> confirm;
+                    if (confirm == 'y' || confirm == 'Y') {
+                        companion = NONE;
+                        mood = 0;
+                        bond_lvl = 0;
+                        trust = 0;
+                        cout << "Companion removed. You can now pick a new companion.\n";
+                    } else {
+                        cout << "Companion replacement cancelled.\n";
+                    }
+                }
+                break;
+
+            case 0:
+                cout << "Returning to Main Menu...\n";
+                break;
+
+            default:
+                cout << "Invalid choice!\n";
+                break;
+        }
+
+        if(companion_option != 0) {
+            cout << "Press Enter to continue...";
+            cin.ignore();
+            cin.get();
+        }
+    } while(companion_option != 0);
+}
 
 //  STATS MENU 
 void statsMenu() {
@@ -439,6 +567,7 @@ void statsMenu() {
                 cout << "Level: " << player.level << "\n";
                 cout << "EXP: " << player.exp << "/100\n";
                 cout << "Stamina: " << player.stamina << "/100\n";
+                cout << "Daily Study Streak: " << player.studyStreak << " day(s)\n";
                 break;
 
             case 2:
