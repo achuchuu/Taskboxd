@@ -476,14 +476,14 @@ void mainMenu() {
         }
         
         cout << R"(                                                          
--------------------------------------------------------------------------------
+------------------------------------------------------------------------------
                                                                   
     ✦ Quick Actions . ˚₊ ⊹ . ˚˖ . ˚                             
                                                             
     ➀ Quests               ➁ Companion                     
     ➂ Exit                                                 
 
--------------------------------------------------------------------------------)";
+------------------------------------------------------------------------------)";
         
         cout << "\n ✦ Enter option: ";
         option = safeInput();
@@ -508,24 +508,25 @@ void questMenu() {
     
     do {
         clearScreen();
-        cout << "\n┌──────────────────── QUESTS ────────────────────┐\n";
-        cout << "│  ➀ Daily Quests                               │\n";
-        cout << "│  ➁ Boss Fights                                │\n";
-        cout << "│  ➂ Side Quests                                │\n";
-        cout << "│                                                │\n";
-        cout << "│  ➃ Back                                       │\n";
-        cout << "└────────────────────────────────────────────────┘\n";
-        cout << "Choose an option: ";
+        cout << R"(                                                          
+------------------------------------------------------------------------------
+                                                                  
+    ✦ QUESTS . ˚₊ ⊹ . ˚˖ . ˚                             
+                                                            
+    ➀ Daily Quests               ➁ Boss Fights                    
+    ➂ Side Quests                ➃ Back                                              
+
+------------------------------------------------------------------------------)";
+        cout << "\nChoose an option: ";
         choice = safeInput();
         
         switch(choice) {
             case 1: dailyQuestsMenu(); break;
             case 2: bossFight(); break;
             case 3: sideQuestMenu(); break;
-            case 4: cout << "Returning to Main Menu...  ᶻ 𝗓 𐰁 .ᐟ\n"; break;
             default: cout << "Invalid choice!\n";
         }
-    } while(choice != 0);
+    } while(choice != 4);
 }
 
 // DAILY QUESTS
@@ -534,7 +535,8 @@ void dailyQuestsMenu() {
     
     do {
         clearScreen();
-        cout << "\n₊✩‧₊˚౨ৎ˚₊✩‧₊ DAILY QUESTS ₊✩‧₊˚౨ৎ˚₊✩‧₊\n";
+        cout << "\n₊˚₊✩‧₊˚౨ৎ˚₊✩‧₊₊✩‧₊˚౨ৎ˚₊✩‧₊₊✩‧₊˚౨ DAILY QUESTS ₊✩‧₊˚౨ৎ˚₊✩‧₊₊✩‧₊˚౨ৎ˚₊✩‧₊ৎ˚₊✩‧₊₊˚\n";
+        cout << "\n";
         cout << "  1. Add Quest                    \n";
         cout << "  2. Complete Quest               \n";
         cout << "                                  \n";
@@ -547,7 +549,8 @@ void dailyQuestsMenu() {
         }
         cout << "                                  \n";
         cout << " 0. Back                          \n";
-        cout << "₊✩‧₊˚౨ৎ˚₊✩‧₊₊✩‧₊˚౨ৎ˚₊✩‧₊₊✩‧₊˚౨ৎ˚₊✩‧₊˚౨ৎ‧₊\n";
+        cout << "\n";
+        cout << "₊˚₊✩‧₊˚౨ৎ˚₊✩‧₊₊✩‧₊˚౨ৎ˚₊✩‧₊₊✩‧₊˚౨ৎ˚₊✩‧₊˚౨ৎ‧₊₊✩‧₊˚౨ৎ˚₊✩‧₊₊✩‧₊˚౨ৎ˚₊✩‧₊₊✩‧₊˚౨ৎ˚₊₊˚\n";
         cout << "Choose: ";
         option = safeInput();
         
@@ -607,7 +610,8 @@ void sideQuestMenu() {
     
     do {
         clearScreen();
-        cout << "\n꒷꒦︶꒷꒦︶ ๋ ࣭ ⭑꒷꒦ SIDE QUESTS ꒷꒦︶꒷꒦︶ ๋ ࣭ ⭑꒷꒦\n";
+        cout << "\n꒷꒦︶ ꒷꒦︶ ๋ ࣭ ⭑꒷꒦ SIDE QUESTS ꒷꒦︶ ꒷꒦︶ ๋ ࣭ ⭑꒷꒦\n";
+        cout << "\n";
         if (sideQuestList.empty()) {
             cout << " No side quests added yet.             \n";
         } else {
@@ -618,7 +622,7 @@ void sideQuestMenu() {
             }
         }
         cout << " 0. Back                               \n";
-        cout << "꒷꒦︶꒷꒦︶ ๋ ࣭ ⭑꒷꒦꒷꒦︶꒷꒦︶ ๋ ࣭ ⭑꒷꒦꒷꒦︶꒷꒦︶ ๋ ࣭ ⭑꒷꒦\n";
+        cout << "\n꒷꒦︶ ꒷꒦︶ ๋ ࣭ ⭑꒷꒦꒷꒦︶ ꒷꒦︶ ๋ ࣭ ⭑꒷꒦꒷꒦︶ ꒷꒦︶\n";
         cout << "\n1. Add Side Quest\n2. Complete a Side Quest\nChoose: ";
         choice = safeInput();
         
@@ -768,13 +772,13 @@ void COMPANIONMENU() {
             displayCompanion();
         }
         
-        cout << "\n┌────────────────────COMPANION────────────────────┐\n";
-        cout << "│  1. Pick a Companion                           │\n";
-        cout << "│  2. View Companion Details                     │\n";
-        cout << "│  3. Replace Companion                          │\n";
-        cout << "│                                                │\n";
-        cout << "│  0. Back                                       │\n";
-        cout << "└────────────────────────────────────────────────┘\n";
+        cout << "\n☾⋆ COMPANION OPTIONS ⋆☽\n\n";
+
+        cout << " • 1 — Pick Companion\n";
+        cout << " • 2 — View Details\n";
+        cout << " • 3 — Replace\n";
+        cout << " • 0 — Back\n";
+        cout << "\n☾⋆⋆⋆⋆⋆⋆⋆⋆⋆⋆⋆⋆⋆⋆⋆⋆⋆⋆⋆⋆⋆☽\n";
         cout << "Choose an option: ";
         companion_option = safeInput();
         
@@ -784,11 +788,23 @@ void COMPANIONMENU() {
                     cout << "You already have a companion!\n";
                 } else {
                     clearScreen();
-                    cout << "Choose who you want to grind with everyday!\n";
-                    cout << "1. ByteBun (Cheerful, loves streaks!)\n";
-                    cout << "2. Gear Cub (Hardworking, thrives in challenges!)\n";
-                    cout << "3. Pixel Limp (Mischievous, random bonuses!)\n";
-                    cout << "0. Cancel\n";
+                    cout << "\n✦ Choose Your Grinding Partner ✦\n\n";
+
+                    cout << " 1. ByteBun\n";
+                    cout << "    (\\_ /)\n";
+                    cout << "    ( •_•)\n";
+                    cout << "    / >💾\n";
+                    cout << "    → Cheerful, loves streaks!\n\n";
+
+                    cout << " 2. Gear Cub\n";
+                    cout << "    ʕ•ᴥ•ʔ⚙️\n";
+                    cout << "    → Hardworking, thrives in challenges!\n\n";
+
+                    cout << " 3. Pixel Limp\n";
+                    cout << "    (>*-*)>☆\n";
+                    cout << "    → Mischievous, random bonuses!\n\n";
+
+                    cout << " 0. Cancel\n";
                     
                     int choice = safeInput();
                     
@@ -893,7 +909,7 @@ int main() {
 
     cout << "Welcome to TaskBox!\n";
 
-    int requiredWidth = 80;
+    int requiredWidth = 77;
     int requiredHeight = 30; // For simple example
     adjustConsoleSize(requiredWidth, requiredHeight);
 
