@@ -252,9 +252,15 @@ void dailyResetCheck() {
     if (today != lastDailyDate) {
         player.dailyTasksCompleted = 0;
         lastDailyDate = today;
+        
+        player.stamina = 100;
+
+        cout << "🌞 A new day begins! Your stamina has been fully restored.\n";
+
         saveData();
     }
 }
+
 
 int safeInput() {
     int x;
